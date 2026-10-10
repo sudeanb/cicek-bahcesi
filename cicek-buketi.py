@@ -249,34 +249,23 @@ def build_document():
     return '''<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#101c1b"><meta name="description" content="Birlikte büyüyüp açılan rengârenk bir buket.">
-<title>Birlikte çiçek açalım</title>
+<title>Çiçek buketi</title>
 <style>
 *{box-sizing:border-box} :root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#101c1b;color:#eee6d2}
-body{margin:0;height:100svh;min-height:510px;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 48%,#1a2b25 0%,#101c1b 68%)}
-header{text-align:center;padding:25px 16px 4px}.eyebrow{font-size:10px;letter-spacing:.30em;color:#a0af97;margin:0 0 10px}
-h1{font:400 clamp(26px,4vw,36px) Georgia,serif;letter-spacing:-.025em;margin:0}
-main{flex:1;min-height:220px;width:100%;display:flex;justify-content:center;min-width:0;padding:0 10px}
+body{margin:0;height:100svh;background:radial-gradient(ellipse at 50% 48%,#1a2b25 0%,#101c1b 68%)}
+main{height:100%;width:100%;display:flex;justify-content:center;min-width:0;padding:18px 10px}
 .stage{width:min(100%,800px);height:100%;min-height:0;position:relative}.stage svg{width:100%;height:100%;display:block;overflow:hidden}
-footer{text-align:center;padding:4px 12px 22px;color:#aebb9e}footer p{font-size:11px;letter-spacing:.07em;margin:0 0 13px}
-.controls{display:flex;justify-content:center;gap:10px;align-items:center}.controls form{margin:0}
-button,.pause-label{border:1px solid #58634e;background:#1b2c23;color:#dfdfc8;border-radius:24px;padding:10px 17px;min-height:41px;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-button:hover,.pause-label:hover{background:#2c3d2d}button:focus-visible,input:focus-visible{outline:2px solid #edcea1;outline-offset:4px}input{accent-color:#aab898;width:14px;height:14px;margin:0}
 .stem{stroke-dasharray:1;stroke-dashoffset:1;animation:grow 5.2s cubic-bezier(.33,.01,.35,1) var(--delay) both}
 .flower-head{transform-origin:0 0;animation:bloom 1.9s cubic-bezier(.22,.75,.25,1) var(--delay) both}
 .leaf-grow{transform-origin:0 0;animation:leaf 1.7s cubic-bezier(.22,.75,.25,1) var(--delay) both}
 .filler{animation:appear 1.3s ease var(--delay) both}.plant{transform-origin:500px 868px;animation:sway 7s ease-in-out var(--sway-delay) infinite alternate}
-body:has(#pause:checked) .stage *{animation-play-state:paused!important}
 @keyframes grow{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes bloom{0%{transform:rotate(-18deg) scale(.001);opacity:0}30%{opacity:1}100%{transform:rotate(0) scale(1);opacity:1}}
 @keyframes leaf{from{transform:scale(.001);opacity:0}to{transform:scale(1);opacity:1}}@keyframes appear{from{opacity:0}to{opacity:.8}}@keyframes sway{from{transform:rotate(-.25deg)}to{transform:rotate(.25deg)}}
 @media(prefers-reduced-motion:reduce){.stage *{animation:none!important}.stem{stroke-dashoffset:0}}
-@media(max-width:540px){header{padding-top:22px}.eyebrow{font-size:9px}main{padding:0 2px}footer{padding-bottom:24px}}
+@media(max-width:540px){main{padding:10px 2px}}
 </style></head><body>
-<header><p class="eyebrow">HER BİRİ BAŞKA · HEPSİ BİR ARADA</p><h1>Birlikte çiçek açalım.</h1></header>
 <main><div class="stage">''' + bouquet_svg() + '''</div></main>
-<footer><p>Bir filizden, rengârenk bir bukete.</p><div class="controls">
-<form method="get"><button type="submit" name="yeniden" value="1">Yeniden büyüt</button></form>
-<label class="pause-label"><input type="checkbox" id="pause">Duraklat</label>
-</div></footer></body></html>
+</body></html>
 '''
 
 
