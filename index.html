@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09151c">
+<meta name="description" content="Topraktan filizlenerek büyüyen yedi farklı çiçek.">
+<title>Bir tohumdan bir bahçeye</title>
+<style>
+  * { box-sizing: border-box; }
+  :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #09151c; color: #e9e6d8; }
+  body { margin: 0; height: 100svh; min-height: 420px; display: flex; flex-direction: column; overflow-x: hidden; }
+  header { text-align: center; padding: 29px 18px 6px; }
+  .eyebrow { color: #9cab9d; font-size: 10px; letter-spacing: .32em; margin: 0 0 12px; }
+  h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(25px, 4.2vw, 38px); font-weight: 400; letter-spacing: -.03em; }
+  main { flex: 1; min-height: 220px; position: relative; width: min(100%, 1150px); align-self: center; }
+  canvas { display: block; width: 100%; height: 100%; }
+  footer { text-align: center; padding: 7px 14px 23px; }
+  .names { color: #b4bca7; font-size: 11px; line-height: 1.9; margin: 0 auto 13px; max-width: 400px; }
+  .controls { display: flex; gap: 10px; justify-content: center; }
+  button { cursor: pointer; min-height: 40px; padding: 10px 19px; border: 1px solid #46534a; border-radius: 25px; background: #14241f; color: #dfdfcc; font: inherit; font-size: 12px; }
+  button:hover { background: #20382a; border-color: #7f977c; }
+  button:focus-visible { outline: 2px solid #eecf84; outline-offset: 4px; }
+  @media(max-width: 540px) { header { padding-top: 24px; } footer { padding-bottom: 22px; } .names { max-width: 290px; font-size: 10px; } }
+</style>
+</head>
+<body>
+<header><p class="eyebrow">HER ÇİÇEK KENDİ ZAMANINDA</p><h1>Bir tohumdan bir bahçeye.</h1></header>
+<main><canvas id="garden" role="img" aria-label="Yedi farklı çiçek topraktan filizlenir. Saplar uzar, yapraklar açılır; papatya, lale, ayçiçeği, gelincik, lavanta, zambak ve gül çiçeklenir.">Topraktan büyüyen yedi farklı çiçek.</canvas></main>
+<footer>
+  <p class="names">Papatya · Lale · Ayçiçeği · Gelincik<br>Lavanta · Zambak · Gül</p>
+  <div class="controls"><button type="button" id="replay">Yeniden büyüt</button><button type="button" id="pause" aria-pressed="false">Duraklat</button></div>
+</footer>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('garden');
+  const ctx = canvas.getContext('2d');
+  const pauseButton = document.getElementById('pause');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let paused = motion.matches, time = motion.matches ? 13 : 0, last = 0;
+  let width = 0, height = 0, ground = 0, flowers = [];
+  const clamp = n => Math.max(0, Math.min(1, n));
+  const smooth = n => { n = clamp(n); return n*n*(3-2*n); };
+  const plants = [
+    { type:'daisy', x:.12, tall:.48, delay:.3, bend:-10, size:25 },
+    { type:'lavender', x:.25, tall:.65, delay:1.5, bend:12, size:21 },
+    { type:'tulip', x:.36, tall:.46, delay:.8, bend:-8, size:26 },
+    { type:'sunflower', x:.50, tall:.80, delay:2.3, bend:8, size:37 },
+    { type:'poppy', x:.63, tall:.43, delay:1.2, bend:12, size:28 },
+    { type:'lily', x:.76, tall:.62, delay:2.9, bend:-9, size:31 },
+    { type:'rose', x:.89, tall:.44, delay:2, bend:7, size:26 }
+  ];
+
+  function resize() {
+    const b = canvas.getBoundingClientRect();
+    width = b.width; height = b.height; ground = height*.86;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width*dpr); canvas.height = Math.round(height*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const unit = Math.min(1.25, width/780, height/480);
+    flowers = plants.map(p => ({...p, base:width*p.x, height:(ground-24)*p.tall,
+      radius:p.size*Math.max(.48,unit), bend:p.bend*Math.max(.5,unit)}));
+    draw();
+  }
+  function ellipse(x,y,rx,ry,angle,color) {
+    ctx.fillStyle=color; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,angle,0,Math.PI*2); ctx.fill();
+  }
+  function petal(angle, length, breadth, color, point=false) {
+    ctx.save(); ctx.rotate(angle); ctx.fillStyle=color;
+    ctx.beginPath(); ctx.moveTo(0,3);
+    ctx.bezierCurveTo(-breadth,length*.28,-breadth*.8,-length*.72,0,-length);
+    ctx.bezierCurveTo(breadth*.8,-length*.72,breadth,length*.28,0,3);
+    ctx.fill();
+    if(point) { ctx.strokeStyle='rgba(255,249,213,.22)'; ctx.lineWidth=.7; ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-length*.84);ctx.stroke(); }
+    ctx.restore();
+  }
+  function radial(count,length,breadth,colors,offset=0,point=false) {
+    for(let i=0;i<count;i++) petal(i/count*Math.PI*2+offset,length,breadth,colors[i%colors.length],point);
+  }
+  function bloom(type,r,progress) {
+    if(progress<=0) return;
+    ctx.save();
+    const scale=.13+.87*smooth(progress);
+    ctx.scale(scale,scale);
+    ctx.globalAlpha*=Math.min(1,progress*4);
+    ctx.shadowBlur=10; ctx.shadowColor='rgba(255,217,173,.18)';
+    if(type==='daisy') {
+      radial(15,r,r*.20,['#fff9e5','#e4e4d9','#f9f0d9']);
+      ellipse(0,0,r*.27,r*.27,0,'#e6b94a');
+      ellipse(-2,-2,r*.13,r*.12,0,'#f7d675');
+    } else if(type==='sunflower') {
+      radial(19,r,r*.20,['#e5a32b','#f2bc43','#d89220']);
+      radial(16,r*.85,r*.19,['#ffd55d','#efbc35'],.15);
+      ellipse(0,0,r*.42,r*.42,0,'#503421');
+      for(let i=0;i<48;i++) {
+        const a=i*2.39996, q=Math.sqrt(i/48)*r*.36;
+        ellipse(Math.cos(a)*q,Math.sin(a)*q,r*.021,r*.025,0,i%2?'#b58345':'#d4aa5f');
+      }
+    } else if(type==='tulip') {
+      ctx.translate(0,-r*.3);
+      petal(-.45,r*1.15,r*.7,'#c54968'); petal(.45,r*1.15,r*.7,'#f19ba9');
+      petal(0,r*1.03,r*.72,'#eb718e');
+      ctx.strokeStyle='#ffc2c3';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-r*.13,-r*.4,0,-r*.9);ctx.stroke();
+    } else if(type==='poppy') {
+      for(let i=0;i<5;i++) {
+        const a=i*Math.PI*2/5;
+        ellipse(Math.sin(a)*r*.36,-Math.cos(a)*r*.36,r*.62,r*.71,a,['#ee6853','#d9463e','#f27b62'][i%3]);
+      }
+      ellipse(0,0,r*.22,r*.2,0,'#302a2d');
+      for(let i=0;i<12;i++) {const a=i*Math.PI/6;ellipse(Math.cos(a)*r*.29,Math.sin(a)*r*.29,r*.035,r*.035,0,'#e8bf78');}
+    } else if(type==='lavender') {
+      ctx.strokeStyle='#739256';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(0,-r*2.6);ctx.stroke();
+      for(let row=0;row<9;row++) {
+        const y=-row*r*.29, breadth=r*.30*(1-row*.055);
+        ellipse(-breadth*.7,y,breadth,breadth*.6,.45,row%2?'#a794ce':'#8972b7');
+        ellipse(breadth*.7,y-r*.09,breadth,breadth*.6,-.45,row%2?'#c3acdf':'#a08bc9');
+      }
+      ellipse(0,-r*2.62,r*.15,r*.26,0,'#d9c7e9');
+    } else if(type==='lily') {
+      radial(3,r,r*.46,['#d7aec4','#ead3df','#f0dce6'],.3,true);
+      radial(3,r*.97,r*.31,['#fff3ea','#f0e0e4','#fbecec'],Math.PI/3+.3,true);
+      for(let i=0;i<5;i++) {
+        const a=(i-2)*.36;
+        ctx.strokeStyle='#adb45d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,2);ctx.lineTo(Math.sin(a)*r*.4,-Math.cos(a)*r*.4);ctx.stroke();
+        ellipse(Math.sin(a)*r*.4,-Math.cos(a)*r*.4,r*.04,r*.09,a,'#ca8a42');
+      }
+    } else if(type==='rose') {
+      radial(7,r,r*.68,['#a72f59','#c84c71','#c25777'],.2);
+      radial(6,r*.76,r*.57,['#df6c8d','#ef829e','#d85d80'],.55);
+      radial(5,r*.49,r*.40,['#f6a0b5','#e57f9f','#f3a5b5'],.8);
+      ellipse(0,0,r*.14,r*.11,-.5,'#a7395f');
+      ctx.strokeStyle='#ffb6c8';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,r*.20,.3,Math.PI*1.6);ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function point(p,f,t) {
+    const wind=paused?0:Math.sin(t*.8+p.x*8)*8;
+    return {x:p.base+p.bend*f*f+wind*f*f, y:ground-p.height*f};
+  }
+  function leaf(x,y,length,side,progress,tint) {
+    if(progress<=0)return;
+    ctx.save(); ctx.translate(x,y);ctx.scale(side*smooth(progress),smooth(progress));ctx.rotate(-.55);
+    ctx.fillStyle=tint;ctx.beginPath();ctx.moveTo(0,0);
+    ctx.bezierCurveTo(length*.2,-length*.6,length*.8,-length*.45,length,0);
+    ctx.bezierCurveTo(length*.7,length*.35,length*.25,length*.28,0,0);ctx.fill();
+    ctx.strokeStyle='#92b46c';ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(length*.45,-length*.1,length*.92,0);ctx.stroke();ctx.restore();
+  }
+  function plant(p,t) {
+    const age=t-p.delay;
+    const growth=smooth(age/5.1), opened=smooth((age-4.7)/1.8);
+    if(age<=0)return;
+    const stalk=ctx.createLinearGradient(0,ground,0,ground-p.height);
+    stalk.addColorStop(0,'#315a3c');stalk.addColorStop(1,'#9aba65');
+    ctx.strokeStyle=stalk;ctx.lineWidth=Math.max(1.6,p.radius*.105);ctx.lineCap='round';
+    ctx.beginPath();
+    for(let i=0;i<=45;i++) {const f=i/45*growth, q=point(p,f,t);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);}
+    ctx.stroke();
+    const leafLength=p.radius*(p.type==='sunflower'?1.15:1.45);
+    for(const [fraction,side] of [[.25,-1],[.47,1],[.68,-1]]) {
+      const q=point(p,fraction,t);
+      leaf(q.x,q.y,leafLength*(fraction===.68?.74:1),side,clamp((growth-fraction)/.19),side<0?'#4d8152':'#689655');
+    }
+    const tip=point(p,growth,t);
+    if(opened<.9) {
+      leaf(tip.x,tip.y,p.radius*.43,-1,Math.min(growth*4,1)*(1-opened),'#9fbd70');
+      leaf(tip.x,tip.y,p.radius*.39,1,Math.min(growth*4,1)*(1-opened),'#6f9b58');
+    }
+    ctx.save();ctx.translate(tip.x,tip.y);ctx.rotate(Math.sin(t*.8+p.x*8)*.025);
+    bloom(p.type,p.radius,opened);ctx.restore();
+  }
+
+  function roots(p,t) {
+    const growth=smooth((t-p.delay)/3.7);if(!growth)return;
+    ctx.save();ctx.strokeStyle='#896e45';ctx.globalAlpha*=.50;
+    ctx.lineWidth=1;ctx.lineCap='round';
+    for(let i=0;i<4;i++) {
+      const spread=(i-1.5)*p.radius*.36, depth=(23+(i%2)*13)*growth;
+      ctx.beginPath();ctx.moveTo(p.base,ground+1);ctx.quadraticCurveTo(p.base+spread*.15,ground+depth*.4,p.base+spread*growth,ground+depth);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(p.base+spread*.5*growth,ground+depth*.65);ctx.lineTo(p.base+(spread+(i%2?8:-8))*growth,ground+depth*.79);ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function draw() {
+    if(!width||!height)return;
+    ctx.clearRect(0,0,width,height);
+    const background=ctx.createLinearGradient(0,0,0,height);
+    background.addColorStop(0,'#09151c');background.addColorStop(.65,'#142d30');background.addColorStop(1,'#233c30');
+    ctx.fillStyle=background;ctx.fillRect(0,0,width,height);
+    const halo=ctx.createRadialGradient(width*.5,ground*.72,0,width*.5,ground*.72,width*.5);
+    halo.addColorStop(0,'rgba(178,177,111,.08)');halo.addColorStop(1,'rgba(178,177,111,0)');ctx.fillStyle=halo;ctx.fillRect(0,0,width,height);
+    // Hafif ışık noktaları; bütün çizim tek dosyada, çevrimdışı çalışır.
+    for(let i=0;i<22;i++) {
+      const x=((i*79.13)%100)/100*width, y=((i*37.27)%100)/100*ground*.82;
+      const alpha=.1+.12*(.5+.5*Math.sin(time*.7+i));
+      ellipse(x,y,1,1,0,`rgba(227,227,182,${alpha})`);
+    }
+    const soil=ctx.createLinearGradient(0,ground,0,height);soil.addColorStop(0,'#413626');soil.addColorStop(1,'#1a1a18');
+    ctx.fillStyle=soil;ctx.beginPath();ctx.moveTo(0,ground);
+    for(let x=0;x<=width;x+=4)ctx.lineTo(x,ground+Math.sin(x*.035)*1.8+Math.sin(x*.087)*1.2);
+    ctx.lineTo(width,height);ctx.lineTo(0,height);ctx.closePath();ctx.fill();
+    for(let i=0;i<110;i++) {
+      const x=((i*61.93)%100)/100*width,y=ground+5+((i*41.39)%100)/100*(height-ground-8);
+      ellipse(x,y,i%4===0?1.2:.6,.6,0,i%2?'#5c4b32':'#322c22');
+    }
+    ctx.save(); ctx.globalAlpha=time>21?1-smooth(time-21):1;
+    flowers.forEach(p=>roots(p,time));
+    // Arka sıradaki uzun çiçekler önce çizilir.
+    [...flowers].sort((a,b)=>b.height-a.height).forEach(p=>plant(p,time));
+    for(let i=0;i<65;i++) {
+      const x=(i+.5)/65*width, age=time-((i*3.7)%4);
+      const size=smooth(age/4)*(4+(i*13)%9);
+      ctx.strokeStyle=i%2?'#537b47':'#385b3b';ctx.lineWidth=.9;
+      ctx.beginPath();ctx.moveTo(x,ground+2);ctx.quadraticCurveTo(x-1,ground-size*.6,x+(i%2?2:-2),ground-size);ctx.stroke();
+    }
+    ctx.restore();
+    canvas.dataset.stage=time<3?'filiz':time<9?'buyume':'ciceklenme';
+  }
+  function sync() {pauseButton.textContent=paused?'Devam et':'Duraklat';pauseButton.setAttribute('aria-pressed',String(paused));}
+  function tick(now) {
+    const dt=last?Math.min((now-last)/1000,.08):0;last=now;
+    if(!paused&&!document.hidden) {time=(time+dt)%22;draw();}
+    requestAnimationFrame(tick);
+  }
+  document.getElementById('replay').addEventListener('click',()=>{time=0;paused=false;last=0;sync();draw();});
+  pauseButton.addEventListener('click',()=>{paused=!paused;sync();draw();});
+  motion.addEventListener('change',e=>{paused=e.matches;if(e.matches)time=13;sync();draw();});
+  document.addEventListener('visibilitychange',()=>{last=0;});
+  new ResizeObserver(resize).observe(canvas);
+  sync();resize();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
